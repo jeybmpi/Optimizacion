@@ -107,4 +107,19 @@ describe("flujo completo", () => {
     await user.click(screen.getByRole("button", { name: "Quitar variable x3" }));
     expect(screen.queryByLabelText("Coeficiente de x3 en Z")).toBeNull();
   });
+
+  it("muestra el método gráfico 2D y el análisis de sensibilidad", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    expect(screen.getByText(/Región factible y curva de isoutilidad/i)).toBeTruthy();
+    expect(screen.getByLabelText("Gráfico de la región factible y vértices")).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: "Sensibilidad" }));
+    expect(screen.getByText(/Precios sombra e intervalos de factibilidad/i)).toBeTruthy();
+    expect(screen.getByText(/Costos reducidos e intervalos de optimalidad/i)).toBeTruthy();
+  });
 });

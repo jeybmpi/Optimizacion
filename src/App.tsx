@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import ProblemForm, { FileTools } from "./components/ProblemForm";
 import Solution, { StatusBanner } from "./components/Solution";
 import StepByStep from "./components/StepByStep";
+import GraphicalMethod from "./components/GraphicalMethod";
+import Sensitivity from "./components/Sensitivity";
 import CloudPanel from "./components/CloudPanel";
 import { solve } from "./lib/api";
 import { cloudEnabled } from "./lib/cloud";
@@ -10,6 +12,29 @@ import { validateProblem } from "./lib/validate";
 import type { Method, NumMode, ProblemIn, SolveResult, ViewMode } from "./types";
 
 type Tab = "solution" | "steps" | "graph" | "sens";
+
+function FlowerIcon({ className = "flower" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 40 40" aria-hidden="true">
+      <defs>
+        <linearGradient id="fpg-opt" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ff9fd8" />
+          <stop offset="0.35" stopColor="#ffe28c" />
+          <stop offset="0.65" stopColor="#8fdcff" />
+          <stop offset="1" stopColor="#c7a2ff" />
+        </linearGradient>
+      </defs>
+      <g fill="url(#fpg-opt)" stroke="#111" strokeWidth="2">
+        <circle cx="20" cy="9.5" r="7" />
+        <circle cx="30" cy="16.8" r="7" />
+        <circle cx="26.2" cy="28.6" r="7" />
+        <circle cx="13.8" cy="28.6" r="7" />
+        <circle cx="10" cy="16.8" r="7" />
+      </g>
+      <circle cx="20" cy="20" r="5.2" fill="#111" />
+    </svg>
+  );
+}
 
 function Segmented<T extends string>({
   label,
@@ -23,19 +48,22 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="seg" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          className={value === o.value ? "on" : undefined}
-          onClick={() => onChange(o.value)}
-        >
-          {o.text}
-        </button>
-      ))}
+    <div className="seg-group">
+      <span className="lab mute">{label}</span>
+      <div className="seg" role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            className={value === o.value ? "on" : undefined}
+            onClick={() => onChange(o.value)}
+          >
+            {o.text}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -86,146 +114,189 @@ export default function App() {
 
   const hasResult = result && result.status !== "invalid" && result.status !== "error";
   const showSteps = hasResult && view === "steps" && (result.iterations?.length ?? 0) > 0;
-  const tabs: { id: Tab; text: string; soon?: boolean }[] = [
+  const tabs: { id: Tab; text: string }[] = [
     { id: "solution", text: "Solución" },
     ...(view === "steps" ? [{ id: "steps" as Tab, text: "Paso a paso" }] : []),
-    { id: "graph", text: "Método gráfico", soon: true },
-    { id: "sens", text: "Sensibilidad", soon: true },
+    { id: "graph", text: "Método gráfico" },
+    { id: "sens", text: "Sensibilidad" },
   ];
 
   return (
-    <div className="app">
-      <header className="top">
-        <div>
-          <h1>Simplex paso a paso</h1>
-          <p>Programación lineal por la Gran M o por el simplex revisado, con aritmética exacta.</p>
-        </div>
-        <div className="top-controls">
-          <Segmented
-            label="Método"
-            value={method}
-            onChange={changeMethod}
-            options={[
-              { value: "bigm", text: "Gran M" },
-              { value: "revised", text: "Simplex revisado" },
-            ]}
-          />
-          <Segmented
-            label="Modo de solución"
-            value={view}
-            onChange={changeView}
-            options={[
-              { value: "direct", text: "Solución directa" },
-              { value: "steps", text: "Paso a paso" },
-            ]}
-          />
-          <Segmented
-            label="Formato de números"
-            value={numMode}
-            onChange={setNumMode}
-            options={[
-              { value: "frac", text: "Fracciones" },
-              { value: "dec", text: "Decimales" },
-            ]}
-          />
-        </div>
+    <div className="page-shell">
+      <header className="topbar">
+        <a className="brand" href="#top">
+          <FlowerIcon />
+          <span>SimplexPoint</span>
+          <span className="pill">PL · Exacto</span>
+        </a>
+        <span className="lab mute">optimización lineal · gran m &amp; b⁻¹</span>
       </header>
+      <div className="holo-line" />
 
-      <main className="layout">
-        <div className="left">
-          <ProblemForm problem={problem} setProblem={edit} validation={validation} showErrors={attempted} />
+      <div className="app" id="top">
+        <header className="top">
+          <div className="hero-copy">
+            <span className="lab rise">Programación Lineal · Aritmética Racional Simbólica</span>
+            <h1 className="rise" style={{ ["--d" as string]: 1 }}>
+              Paso a paso
+            </h1>
+            <p className="rise" style={{ ["--d" as string]: 2 }}>
+              Programación lineal por la Gran M o por el simplex revisado, con aritmética exacta, geometría 2D y
+              análisis de sensibilidad.
+            </p>
+          </div>
+          <div className="top-controls rise" style={{ ["--d" as string]: 3 }}>
+            <Segmented
+              label="Método"
+              value={method}
+              onChange={changeMethod}
+              options={[
+                { value: "bigm", text: "Gran M" },
+                { value: "revised", text: "Simplex revisado" },
+              ]}
+            />
+            <Segmented
+              label="Modo de solución"
+              value={view}
+              onChange={changeView}
+              options={[
+                { value: "direct", text: "Solución directa" },
+                { value: "steps", text: "Paso a paso" },
+              ]}
+            />
+            <Segmented
+              label="Formato de números"
+              value={numMode}
+              onChange={setNumMode}
+              options={[
+                { value: "frac", text: "Fracciones" },
+                { value: "dec", text: "Decimales" },
+              ]}
+            />
+          </div>
+        </header>
 
-          {attempted && invalid && (
-            <div className="banner bad" role="alert">
-              <strong>Corrige estos datos para resolver</strong>
-              <ul>
-                {validation.messages.slice(0, 6).map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-                {validation.messages.length > 6 && <li>y {validation.messages.length - 6} más…</li>}
-              </ul>
-            </div>
-          )}
-          {fileError && (
-            <div className="banner bad" role="alert">
-              <p>{fileError}</p>
-            </div>
-          )}
+        <main className="layout">
+          <div className="left">
+            <ProblemForm problem={problem} setProblem={edit} validation={validation} showErrors={attempted} />
 
-          <button type="button" className="primary" onClick={() => void run(view)} disabled={loading}>
-            {loading ? "Resolviendo…" : view === "steps" ? "Resolver paso a paso" : "Resolver"}
-          </button>
-
-          <FileTools problem={problem} setProblem={edit} onError={setFileError} />
-          {cloudEnabled && <CloudPanel problem={problem} onLoad={edit} />}
-        </div>
-
-        <div className="right" aria-live="polite">
-          {!result && (
-            <div className="empty">
-              <h2>Aquí aparecerá el resultado</h2>
-              <p>
-                Edita el modelo, o carga uno de los ejemplos, y pulsa <strong>Resolver</strong>. En modo paso a paso verás la forma
-                estándar y cada iteración con su variable que entra, la razón mínima y el pivote.
-              </p>
-            </div>
-          )}
-
-          {result && (result.status === "invalid" || result.status === "error") && (
-            <div className="banner bad" role="alert">
-              <strong>{result.status === "invalid" ? "Revisa el problema" : "Algo salió mal"}</strong>
-              {result.errors ? (
+            {attempted && invalid && (
+              <div className="banner bad" role="alert">
+                <strong>Corrige estos datos para resolver</strong>
                 <ul>
-                  {result.errors.map((e) => (
-                    <li key={e}>{e}</li>
+                  {validation.messages.slice(0, 6).map((m) => (
+                    <li key={m}>{m}</li>
                   ))}
+                  {validation.messages.length > 6 && <li>y {validation.messages.length - 6} más…</li>}
                 </ul>
-              ) : (
-                <p>{result.message}</p>
-              )}
-            </div>
-          )}
-
-          {hasResult && (
-            <>
-              <StatusBanner result={result} />
-              <div className="tabs" role="tablist">
-                {tabs.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === t.id}
-                    className={(tab === t.id ? "on " : "") + (t.soon ? "soon" : "")}
-                    onClick={() => setTab(t.id)}
-                  >
-                    {t.text}
-                  </button>
-                ))}
               </div>
+            )}
+            {fileError && (
+              <div className="banner bad" role="alert">
+                <p>{fileError}</p>
+              </div>
+            )}
 
-              {tab === "solution" && <Solution result={result} mode={numMode} />}
-              {tab === "steps" && showSteps && <StepByStep result={result} mode={numMode} />}
-              {tab === "graph" && (
-                <div className="empty">
-                  <h2>Método gráfico</h2>
-                  {(result.n ?? 0) > 2 ? (
-                    <p>El método gráfico solo aplica a problemas con 2 variables. Este problema tiene {result.n}.</p>
-                  ) : (
-                    <p>Pendiente para el Sprint 2: región factible, vértices con su Z y recta de isoutilidad en el óptimo.</p>
-                  )}
+            <button type="button" className="primary" onClick={() => void run(view)} disabled={loading}>
+              {loading ? "Resolviendo…" : view === "steps" ? "Resolver paso a paso" : "Resolver"}
+            </button>
+
+            <FileTools problem={problem} setProblem={edit} onError={setFileError} />
+            {cloudEnabled && <CloudPanel problem={problem} onLoad={edit} />}
+          </div>
+
+          <div className="right" aria-live="polite">
+            {!result && (
+              <div className="empty fp-empty">
+                <div className="fp-empty-head">
+                  <FlowerIcon className="flower big-empty-flower" />
+                  <div>
+                    <span className="lab mute">Listo para calcular</span>
+                    <h2>Aquí aparecerá el resultado</h2>
+                  </div>
                 </div>
-              )}
-              {tab === "sens" && (
-                <div className="empty">
-                  <h2>Análisis de sensibilidad</h2>
-                  <p>Pendiente para el Sprint 2: precios sombra, costos reducidos y rangos de c y b.</p>
+                <p>
+                  Edita el modelo, o carga uno de los ejemplos, y pulsa <strong>Resolver</strong>. En modo paso a paso
+                  verás la forma estándar y cada iteración con su variable que entra, la razón mínima y el pivote.
+                </p>
+                <div className="fp-pills-row">
+                  <span className="pill">Fracciones exactas</span>
+                  <span className="pill">M simbólica</span>
+                  <span className="pill">Gráfico 2D</span>
+                  <span className="pill">Sensibilidad</span>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </main>
+              </div>
+            )}
+
+            {result && (result.status === "invalid" || result.status === "error") && (
+              <div className="banner bad" role="alert">
+                <strong>{result.status === "invalid" ? "Revisa el problema" : "Algo salió mal"}</strong>
+                {result.errors ? (
+                  <ul>
+                    {result.errors.map((e) => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>{result.message}</p>
+                )}
+              </div>
+            )}
+
+            {hasResult && (
+              <>
+                <StatusBanner result={result} />
+                <div className="tabs" role="tablist">
+                  {tabs.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === t.id}
+                      className={tab === t.id ? "on" : undefined}
+                      onClick={() => setTab(t.id)}
+                    >
+                      {t.text}
+                    </button>
+                  ))}
+                </div>
+
+                {tab === "solution" && <Solution result={result} mode={numMode} />}
+                {tab === "steps" && showSteps && <StepByStep result={result} mode={numMode} />}
+                {tab === "graph" && <GraphicalMethod problem={problem} result={result} mode={numMode} />}
+                {tab === "sens" && <Sensitivity problem={problem} result={result} mode={numMode} />}
+              </>
+            )}
+          </div>
+        </main>
+
+        <section className="how" aria-label="Cómo funciona">
+          <div>
+            <span className="lab mute">01</span>
+            <b>M simbólica y fracciones exactas</b>
+            <span>
+              Cada celda se representa como a + b·M con números racionales exactos; jamás se aproxima M por un flotante
+              como 10⁶.
+            </span>
+          </div>
+          <div>
+            <span className="lab mute">02</span>
+            <b>Gran M tabular y Simplex Revisado</b>
+            <span>
+              Alterna en un clic entre el tablero completo de Gauss-Jordan y la actualización matricial explícita con
+              B⁻¹ y costos reducidos.
+            </span>
+          </div>
+          <div>
+            <span className="lab mute">03</span>
+            <b>Geometría 2D y Sensibilidad Dual</b>
+            <span>
+              Explora el polígono factible, la recta de isoutilidad, los precios sombra y los intervalos de optimalidad
+              y factibilidad.
+            </span>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
