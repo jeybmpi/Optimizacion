@@ -74,6 +74,9 @@ export default function App() {
   const [method, setMethod] = useState<Method>("bigm");
   const [numMode, setNumMode] = useState<NumMode>("frac");
   const [result, setResult] = useState<SolveResult | null>(null);
+  // Copia del problema tal como se envió al solver: el gráfico y la sensibilidad deben usar ESTA
+  // copia (no el formulario, que el usuario puede seguir editando después de resolver).
+  const [solvedProblem, setSolvedProblem] = useState<ProblemIn | null>(null);
   const [loading, setLoading] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [tab, setTab] = useState<Tab>("steps");
@@ -90,8 +93,10 @@ export default function App() {
       return;
     }
     setLoading(true);
-    const r = await solve(problem, v === "steps", mth);
+    const snapshot = structuredClone(problem);
+    const r = await solve(snapshot, v === "steps", mth);
     setLoading(false);
+    setSolvedProblem(snapshot);
     setResult(r);
     setTab(v === "steps" ? "steps" : "solution");
   };
@@ -113,6 +118,8 @@ export default function App() {
   };
 
   const hasResult = result && result.status !== "invalid" && result.status !== "error";
+  // ¿el formulario ya no coincide con el problema que produjo el resultado mostrado?
+  const stale = !!solvedProblem && JSON.stringify(solvedProblem) !== JSON.stringify(problem);
   const showSteps = hasResult && view === "steps" && (result.iterations?.length ?? 0) > 0;
   const tabs: { id: Tab; text: string }[] = [
     { id: "solution", text: "Solución" },
@@ -246,6 +253,14 @@ export default function App() {
             {hasResult && (
               <>
                 <StatusBanner result={result} />
+                {stale && (
+                  <div className="banner warn" role="status">
+                    <p>
+                      Cambiaste el modelo después de resolver. Estos resultados corresponden al problema anterior;
+                      pulsa <strong>Resolver</strong> para actualizarlos.
+                    </p>
+                  </div>
+                )}
                 <div className="tabs" role="tablist">
                   {tabs.map((t) => (
                     <button
@@ -263,8 +278,8 @@ export default function App() {
 
                 {tab === "solution" && <Solution result={result} mode={numMode} />}
                 {tab === "steps" && showSteps && <StepByStep result={result} mode={numMode} />}
-                {tab === "graph" && <GraphicalMethod problem={problem} result={result} mode={numMode} />}
-                {tab === "sens" && <Sensitivity problem={problem} result={result} mode={numMode} />}
+                {tab === "graph" && solvedProblem && <GraphicalMethod problem={solvedProblem} result={result} mode={numMode} />}
+                {tab === "sens" && solvedProblem && <Sensitivity problem={solvedProblem} result={result} mode={numMode} />}
               </>
             )}
           </div>

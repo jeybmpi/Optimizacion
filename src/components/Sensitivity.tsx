@@ -33,6 +33,28 @@ export default function Sensitivity({
 
   return (
     <div className="steps">
+      {(result.degenerate || result.multiple) && (
+        <div className="banner warn" role="status">
+          <strong>Interpreta estos rangos con cuidado</strong>
+          <ul>
+            {result.degenerate && (
+              <li>
+                La solución es <strong>degenerada</strong> ({(result.zero_basic ?? []).join(", ") || "una variable básica"}{" "}
+                vale 0). Los precios sombra pueden no ser únicos y uno de los extremos de los intervalos de bᵢ puede
+                coincidir con el valor actual (Δ = 0): es normal, no un error.
+              </li>
+            )}
+            {result.multiple && (
+              <li>
+                Hay <strong>óptimos múltiples</strong>: otra solución da el mismo Z. Los rangos de cⱼ y bᵢ se calculan
+                para la base final encontrada; otra base óptima tendría rangos distintos. Una variable no básica con
+                costo reducido 0 es la señal de esta situación.
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
       {/* 1. Precios sombra y rangos de factibilidad (Lado derecho b_i) */}
       <section className="block">
         <span className="lab mute">Dualidad · Lados derechos (bᵢ)</span>
@@ -99,7 +121,7 @@ export default function Sensitivity({
                 <th>Variable</th>
                 <th>Base</th>
                 <th>Valor óptimo (xⱼ*)</th>
-                <th>Costo reducido</th>
+                <th>Costo reducido (empeora Z)</th>
                 <th>cⱼ actual</th>
                 <th>Intervalo [cⱼ mín, cⱼ máx]</th>
                 <th>Cambio permitido [−Δ, +Δ]</th>
@@ -144,6 +166,21 @@ export default function Sensitivity({
                   : `Tiene margen disponible (${num(c.slackValue, mode)} unidades), por lo que su precio sombra es ${num(c.shadowPrice, mode)}.`}
               </li>
             ))}
+            {report.variables.map((v) => {
+              const lo = fmtBound(v.cMin, "−∞");
+              const hi = fmtBound(v.cMax, "+∞");
+              const rng = `mientras c${v.name.slice(1)} esté en [${lo}, ${hi}] el vértice óptimo no cambia (Z sí cambia, porque cₓ·x varía).`;
+              return (
+                <li key={v.name}>
+                  <strong>{v.name}:</strong>{" "}
+                  {v.isBasic
+                    ? `es básica con valor ${num(v.optValue, mode)}; ${rng}`
+                    : v.reducedCost !== "0"
+                      ? `vale 0. Su costo reducido es ${num(v.reducedCost, mode)}: producir una unidad de ${v.name} empeoraría Z en esa cantidad; ${rng}`
+                      : `vale 0 pero su costo reducido es 0: puede entrar a la base sin cambiar Z (señal de óptimos múltiples); ${rng}`}
+                </li>
+              );
+            })}
           </ul>
         </section>
 

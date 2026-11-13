@@ -122,4 +122,62 @@ describe("flujo completo", () => {
     expect(screen.getByText(/Precios sombra e intervalos de factibilidad/i)).toBeTruthy();
     expect(screen.getByText(/Costos reducidos e intervalos de optimalidad/i)).toBeTruthy();
   });
+
+  it("el gráfico avisa región vacía (infactible) y no acotada", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await loadExample(user, /4 · Infactible/);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Sin solución factible")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    expect(screen.getByText(/Región factible vacía/)).toBeTruthy();
+
+    await loadExample(user, /5 · No acotado/);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución no acotada")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    expect(screen.getByText(/Región factible no acotada/)).toBeTruthy();
+  });
+
+  it("óptimos múltiples: avisa en gráfico y sensibilidad", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await loadExample(user, /6 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    expect(screen.getAllByText(/Óptimos múltiples/).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("tab", { name: "Sensibilidad" }));
+    expect(screen.getByText(/Interpreta estos rangos con cuidado/)).toBeTruthy();
+  });
+
+  it("avisa que los resultados son del problema anterior si se edita después de resolver", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    expect(screen.queryByText(/Cambiaste el modelo después de resolver/)).toBeNull();
+    const field = screen.getByLabelText("Restricción 1, coeficiente de x1");
+    await user.clear(field);
+    await user.type(field, "7");
+    expect(screen.getByText(/Cambiaste el modelo después de resolver/)).toBeTruthy();
+  });
+  it("tras editar el modelo, avisa que los resultados son del problema anterior y el gráfico usa el problema resuelto", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    expect(screen.queryByText(/después de resolver/i)).toBeNull();
+
+    const c1 = screen.getByLabelText("Coeficiente de x1 en Z") as HTMLInputElement;
+    await user.clear(c1);
+    await user.type(c1, "7");
+    expect(screen.getByText(/después de resolver/i)).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    expect(screen.getByLabelText("Gráfico de la región factible y vértices")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.queryByText(/después de resolver/i)).toBeNull());
+  });
 });

@@ -1084,3 +1084,13 @@ table.tableau th.vb.col-in {
     background: #fff !important;
   }
 }
+
+/* rótulos de Z sobre los vértices del método gráfico */
+.vertex-lab {
+  font: 600 11px "JetBrains Mono", ui-monospace, monospace;
+  fill: #111;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}

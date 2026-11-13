@@ -245,7 +245,8 @@ export function computeSensitivity(problem: ProblemIn, result: SolveResult): Sen
   const variables: VarSensitivity[] = Array.from({ length: n }, (_, j) => {
     const bPos = basisIdx.indexOf(j);
     const isBasic = bPos >= 0;
-    const rc = isMax ? rcMax[j] : rcMax[j].neg();
+    // Magnitud del empeoramiento de Z por cada unidad que entre x_j (≥ 0 en óptimo, tanto en Max como en Min)
+    const rc = rcMax[j];
 
     // Para perturbación delta en cMax[j]:
     // Si j es NO básica: nuevo rcMax[j] = rcMax[j] - delta >= 0  =>  delta <= rcMax[j]

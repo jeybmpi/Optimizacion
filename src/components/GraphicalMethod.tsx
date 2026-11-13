@@ -143,7 +143,11 @@ export default function GraphicalMethod({
       polyPts.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
     }
 
-    return { cons, c1, c2, optZ, vertices, feasibleVerts, polyPts, maxX, maxY };
+    const touchesBox = polyPts.some((q) => q.x > maxX - 1e-3 || q.y > maxY - 1e-3);
+    const unboundedRegion = feasibleVerts.length > 0 && touchesBox;
+    const emptyRegion = feasibleVerts.length === 0;
+    const optVerts = vertices.filter((v) => v.isOptimal);
+    return { cons, c1, c2, optZ, vertices, feasibleVerts, polyPts, maxX, maxY, unboundedRegion, emptyRegion, optVerts };
   }, [n, problem, result]);
 
   if (n !== 2 || !geo) {
@@ -216,6 +220,34 @@ export default function GraphicalMethod({
           </div>
         </div>
 
+        {geo.emptyRegion && (
+          <div className="banner bad" role="alert">
+            <p>
+              <strong>Región factible vacía.</strong> Ningún punto cumple a la vez todas las restricciones y x ≥ 0,
+              por eso no hay polígono ni solución. Se dibujan las rectas para ver dónde se contradicen.
+            </p>
+          </div>
+        )}
+        {geo.unboundedRegion && (
+          <div className="banner warn" role="status">
+            <p>
+              <strong>Región factible no acotada.</strong> Se extiende sin límite hacia la derecha o hacia arriba; el
+              dibujo la recorta a la ventana visible (zona rayada en el borde).
+              {result.status === "unbounded"
+                ? " Como la recta de Z puede desplazarse indefinidamente dentro de la región, no existe óptimo finito."
+                : " Aun así hay óptimo finito porque la función objetivo deja de mejorar antes de salir de la región."}
+            </p>
+          </div>
+        )}
+        {result.status === "optimal" && geo.optVerts.length >= 2 && (
+          <div className="banner warn" role="status">
+            <p>
+              <strong>Óptimos múltiples.</strong> La recta de Z coincide con una arista de la región: todos los puntos
+              del segmento entre los vértices óptimos resaltados dan el mismo Z = {num(geo.optZ!.toString(), mode)}.
+            </p>
+          </div>
+        )}
+
         <div className="graph-wrap">
           <svg
             viewBox={`0 0 ${W} ${H}`}
@@ -229,6 +261,9 @@ export default function GraphicalMethod({
                 <stop offset="50%" stopColor="#8fdcff" stopOpacity="0.32" />
                 <stop offset="100%" stopColor="#c7a2ff" stopOpacity="0.38" />
               </linearGradient>
+              <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="6" stroke="#c8243f" strokeWidth="2" opacity="0.55" />
+              </pattern>
               <clipPath id="plot-clip">
                 <rect x={padL} y={padT} width={plotW} height={plotH} />
               </clipPath>
@@ -261,6 +296,43 @@ export default function GraphicalMethod({
                   strokeWidth="2"
                 />
               )}
+              {geo.polyPts.length === 2 && (
+                /* región degenerada (p. ej. con una restricción de igualdad): es un segmento */
+                <line
+                  x1={sx(geo.polyPts[0].x)}
+                  y1={sy(geo.polyPts[0].y)}
+                  x2={sx(geo.polyPts[1].x)}
+                  y2={sy(geo.polyPts[1].y)}
+                  stroke="#c7a2ff"
+                  strokeWidth="12"
+                  opacity="0.85"
+                  strokeLinecap="round"
+                />
+              )}
+              {geo.unboundedRegion && (
+                <>
+                  <rect x={sx(geo.maxX) - 6} y={padT} width="6" height={plotH} fill="url(#hatch)" />
+                  <rect x={padL} y={padT} width={plotW} height="6" fill="url(#hatch)" />
+                </>
+              )}
+              {geo.optVerts.length >= 2 &&
+                (() => {
+                  const sorted = [...geo.optVerts].sort((a, b) => a.x1.toNumber() - b.x1.toNumber());
+                  const f = sorted[0];
+                  const l = sorted[sorted.length - 1];
+                  return (
+                    <line
+                      x1={sx(f.x1.toNumber())}
+                      y1={sy(f.x2.toNumber())}
+                      x2={sx(l.x1.toNumber())}
+                      y2={sy(l.x2.toNumber())}
+                      stroke="#2fa36b"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      opacity="0.8"
+                    />
+                  );
+                })()}
 
               {geo.cons.map((c, idx) => {
                 const seg = clipLine(c.a1.toNumber(), c.a2.toNumber(), c.b.toNumber());
@@ -331,6 +403,16 @@ export default function GraphicalMethod({
                     stroke="#111111"
                     strokeWidth="2"
                   />
+                  {v.feasible && !active && (
+                    <text
+                      x={Math.min(cx + 8, padL + plotW - 4)}
+                      y={Math.max(cy - 8, padT + 12)}
+                      className="vertex-lab"
+                      textAnchor={cx + 8 > padL + plotW - 70 ? "end" : "start"}
+                    >
+                      Z={num(v.z.toString(), mode)}
+                    </text>
+                  )}
                   {active && (
                     <g transform={`translate(${Math.min(cx + 10, W - 155)}, ${Math.max(cy - 28, padT + 6)})`}>
                       <rect x="0" y="0" width="142" height="24" fill="#111111" stroke="#ffffff" strokeWidth="1" />
