@@ -180,4 +180,30 @@ describe("flujo completo", () => {
     await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
     await waitFor(() => expect(screen.queryByText(/después de resolver/i)).toBeNull());
   });
+  it("ejemplo 2 (igualdad): dibuja la región como segmento y rotula Z en los vértices", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await loadExample(user, /2 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    // la región factible es el segmento (2/5, 9/5) – (3/5, 6/5): se dibuja como línea gruesa
+    expect(container.querySelector('line[stroke="#c7a2ff"][stroke-width="12"]')).toBeTruthy();
+    // vértice no óptimo rotulado con su Z en el gráfico; el óptimo muestra su etiqueta completa
+    expect(container.querySelectorAll(".vertex-lab").length).toBe(1);
+    expect(container.textContent).toContain("Z=18/5");
+    expect(container.textContent).toContain("(2/5, 9/5)");
+    expect(container.textContent).toContain("Z=17/5");
+  });
+
+  it("ejemplo 1: todos los vértices factibles quedan rotulados con su Z", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await loadExample(user, /1 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
+    const txt = container.textContent ?? "";
+    for (const z of ["Z=0", "Z=2500", "Z=2400", "Z=3380"]) expect(txt).toContain(z);
+  });
 });

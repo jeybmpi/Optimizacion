@@ -194,8 +194,18 @@ export default function GraphicalMethod({
     return pts.length >= 2 ? [pts[0][0], pts[0][1], pts[1][0], pts[1][1]] : null;
   };
 
-  const xTicks = Array.from({ length: 6 }, (_, i) => (geo.maxX * i) / 5);
-  const yTicks = Array.from({ length: 6 }, (_, i) => (geo.maxY * i) / 5);
+  // Marcas "redondas" (1, 2, 5 × 10^k) en vez de dividir el máximo en 5 partes iguales (que daba 1.3, 5.1...)
+  const niceTicks = (max: number): number[] => {
+    const raw = max / 5;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / pow;
+    const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * pow;
+    const out: number[] = [];
+    for (let t = 0; t <= max + 1e-9; t += step) out.push(Math.round(t / step) * step);
+    return out;
+  };
+  const xTicks = niceTicks(geo.maxX);
+  const yTicks = niceTicks(geo.maxY);
   const isoSeg =
     geo.optZ !== null ? clipLine(geo.c1.toNumber(), geo.c2.toNumber(), geo.optZ.toNumber()) : null;
 
