@@ -487,6 +487,11 @@ button.link {
   color: var(--blue);
   border-color: var(--blue);
 }
+.pill.warn {
+  background: #fff4d6;
+  color: #8a5a00;
+  border-color: #c98a00;
+}
 .pill.off {
   background: var(--bg);
   color: var(--mute);

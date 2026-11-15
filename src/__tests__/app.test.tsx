@@ -148,7 +148,7 @@ describe("flujo completo", () => {
     await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
     expect(screen.getAllByText(/Óptimos múltiples/).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("tab", { name: "Sensibilidad" }));
-    expect(screen.getByText(/Interpreta estos rangos con cuidado/)).toBeTruthy();
+    expect(screen.getByText(/Interpreta estos resultados con cuidado/)).toBeTruthy();
   });
 
   it("avisa que los resultados son del problema anterior si se edita después de resolver", async () => {
@@ -205,5 +205,44 @@ describe("flujo completo", () => {
     await user.click(screen.getByRole("tab", { name: "Método gráfico" }));
     const txt = container.textContent ?? "";
     for (const z of ["Z=0", "Z=2500", "Z=2400", "Z=3380"]) expect(txt).toContain(z);
+  });
+  it("sensibilidad, ejemplo 7 (degenerado): marca precios sombra no únicos y muestra la pendiente real por lado", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await loadExample(user, /7 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Sensibilidad" }));
+    expect(screen.getAllByText(/no único/).length).toBe(2); // R1 y R2
+    // Pendientes reales (verificadas re-resolviendo): R1 sube 0 / baja 3/2 ; R2 sube 3/2 / baja 9/2
+    await waitFor(() => expect(container.textContent).toContain("bajar bᵢ: ΔZ/Δb = 9/2"));
+    const txt = container.textContent ?? "";
+    expect(txt).toContain("subir bᵢ: ΔZ/Δb = 0");
+    expect(txt).toContain("bajar bᵢ: ΔZ/Δb = 3/2");
+    expect(txt).toContain("subir bᵢ: ΔZ/Δb = 3/2");
+  });
+
+  it("sensibilidad, ejemplo 6 (óptimos múltiples): marca la variable alternativa y da la otra solución óptima", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
+    await loadExample(user, /6 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Sensibilidad" }));
+    expect(screen.getAllByText(/óptimo alternativo/).length).toBe(1);
+    expect(container.textContent).toContain("x = (3, 1)");
+    expect(screen.queryByText(/no único/)).toBeNull();
+  });
+
+  it("sensibilidad, ejemplo 1 (sin degeneración ni alternativas): no muestra advertencias", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await loadExample(user, /1 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Sensibilidad" }));
+    expect(screen.queryByText(/no único/)).toBeNull();
+    expect(screen.queryByText(/óptimo alternativo/)).toBeNull();
+    expect(screen.queryByText(/Interpreta estos resultados con cuidado/)).toBeNull();
   });
 });

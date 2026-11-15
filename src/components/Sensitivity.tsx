@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { NumMode, ProblemIn, SolveResult } from "../types";
 import { computeSensitivity } from "../lib/sensitivity";
 import { num } from "../lib/numfmt";
+import { isOneSided, lateralShadowPrices, type Lateral } from "../lib/lateral";
 
+const Frac0 = (v: string) => Number(v.split("/")[0]) === 0;
 const sym = { "<=": "≤", ">=": "≥", "=": "=" } as const;
 
 export default function Sensitivity({
@@ -15,6 +17,21 @@ export default function Sensitivity({
   mode: NumMode;
 }) {
   const report = useMemo(() => computeSensitivity(problem, result), [problem, result]);
+
+  // Filas con precio sombra no único (variable básica en 0): se calculan las pendientes reales por cada lado.
+  const [lateral, setLateral] = useState<Record<number, Lateral> | null>(null);
+  const oneSidedRows = useMemo(() => (report ? report.constraints.filter(isOneSided) : []), [report]);
+  useEffect(() => {
+    let cancelled = false;
+    setLateral(null);
+    if (!report || oneSidedRows.length === 0) return;
+    lateralShadowPrices(problem, result, oneSidedRows)
+      .then((l) => !cancelled && setLateral(l))
+      .catch(() => !cancelled && setLateral({}));
+    return () => {
+      cancelled = true;
+    };
+  }, [problem, result, report, oneSidedRows]);
 
   if (result.status !== "optimal" || !report) {
     return (
@@ -35,20 +52,30 @@ export default function Sensitivity({
     <div className="steps">
       {(result.degenerate || result.multiple) && (
         <div className="banner warn" role="status">
-          <strong>Interpreta estos rangos con cuidado</strong>
+          <strong>Interpreta estos resultados con cuidado</strong>
           <ul>
             {result.degenerate && (
               <li>
                 La solución es <strong>degenerada</strong> ({(result.zero_basic ?? []).join(", ") || "una variable básica"}{" "}
-                vale 0). Los precios sombra pueden no ser únicos y uno de los extremos de los intervalos de bᵢ puede
-                coincidir con el valor actual (Δ = 0): es normal, no un error.
+                vale 0). Un extremo del intervalo de bᵢ coincide con el valor actual y el precio sombra{" "}
+                <strong>no es único</strong>: solo vale hacia un lado. En las filas marcadas con ⚠ se muestra la
+                variación real de Z hacia cada lado (re-resolviendo con bᵢ ± 0.001).
               </li>
             )}
             {result.multiple && (
               <li>
-                Hay <strong>óptimos múltiples</strong>: otra solución da el mismo Z. Los rangos de cⱼ y bᵢ se calculan
-                para la base final encontrada; otra base óptima tendría rangos distintos. Una variable no básica con
-                costo reducido 0 es la señal de esta situación.
+                Hay <strong>óptimos múltiples</strong>: otra solución da el mismo Z
+                {result.alt?.x ? (
+                  <>
+                    {" "}
+                    (al entrar <strong>{result.alt.var}</strong>: x = ({result.alt.x.map((v) => num(v, mode)).join(", ")}))
+                  </>
+                ) : result.alt?.ray ? (
+                  <> (hay un rayo óptimo al entrar {result.alt.var}: la región es no acotada en esa dirección)</>
+                ) : null}
+                . Todos los puntos del segmento entre ambas soluciones son óptimos. Las variables no básicas con costo
+                reducido 0 (marcadas con ⚠) son la señal; los rangos de cⱼ y bᵢ corresponden a la base final
+                encontrada y otra base óptima tendría rangos distintos.
               </li>
             )}
           </ul>
@@ -91,6 +118,25 @@ export default function Sensitivity({
                   <td>{c.op === "=" ? "—" : num(c.slackValue, mode)}</td>
                   <td>
                     <strong>{num(c.shadowPrice, mode)}</strong>
+                    {isOneSided(c) && (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="pill warn" title="Variable básica en 0: el precio sombra solo vale hacia un lado">
+                          ⚠ no único
+                        </span>
+                        <div className="hint" style={{ margin: "4px 0 0" }}>
+                          {lateral === null ? (
+                            "calculando pendientes…"
+                          ) : lateral[c.index] ? (
+                            <>
+                              ↑ subir bᵢ: ΔZ/Δb = <strong>{lateral[c.index].up === null ? "—" : num(lateral[c.index].up!, mode)}</strong>
+                              <br />↓ bajar bᵢ: ΔZ/Δb = <strong>{lateral[c.index].down === null ? "—" : num(lateral[c.index].down!, mode)}</strong>
+                            </>
+                          ) : (
+                            "no disponible"
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </td>
                   <td>{num(c.originalB, mode)}</td>
                   <td>
@@ -137,7 +183,16 @@ export default function Sensitivity({
                     </span>
                   </td>
                   <td>{num(v.optValue, mode)}</td>
-                  <td>{num(v.reducedCost, mode)}</td>
+                  <td>
+                    {num(v.reducedCost, mode)}
+                    {!v.isBasic && Frac0(v.reducedCost) && (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="pill warn" title="Costo reducido 0: entrar a la base no cambia Z (óptimo alternativo)">
+                          ⚠ óptimo alternativo
+                        </span>
+                      </div>
+                    )}
+                  </td>
                   <td>{num(v.originalC, mode)}</td>
                   <td>
                     [{fmtBound(v.cMin, "−∞")}, {fmtBound(v.cMax, "+∞")}]
