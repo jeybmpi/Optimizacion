@@ -245,4 +245,59 @@ describe("flujo completo", () => {
     expect(screen.queryByText(/óptimo alternativo/)).toBeNull();
     expect(screen.queryByText(/Interpreta estos resultados con cuidado/)).toBeNull();
   });
+  it("comparar métodos (ejemplo 2): ambos coinciden, Gran M tiene paso previo y se listan los pivoteos", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await loadExample(user, /2 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Comparar métodos" }));
+    await waitFor(() => expect(screen.getByText("Los dos métodos coinciden")).toBeTruthy());
+    expect(screen.getByText(/mismos vértices/)).toBeTruthy();
+    expect(screen.getByText(/Paso previo/)).toBeTruthy();
+    expect(screen.getByText("Pivoteo en cada método")).toBeTruthy();
+    // 3 pivoteos + fila final de optimalidad
+    expect(screen.getAllByText("✓").length).toBe(4);
+  });
+
+  it("comparar métodos (infactible): ambos concluyen infactible", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await loadExample(user, /4 · Infactible/);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Sin solución factible")).toBeTruthy());
+    await user.click(screen.getByRole("tab", { name: "Comparar métodos" }));
+    await waitFor(() => expect(screen.getByText("Los dos métodos coinciden")).toBeTruthy());
+    expect(screen.getByText(/Ambos concluyen: Infactible/)).toBeTruthy();
+  });
+
+  it("exportar PDF completo: monta el reporte con todas las secciones, imprime y se limpia", async () => {
+    const user = userEvent.setup();
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    const { container } = render(<App />);
+    await loadExample(user, /1 · /);
+    await user.click(screen.getByRole("button", { name: /resolver paso a paso/i }));
+    await waitFor(() => expect(screen.getByText("Solución óptima")).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: /Exportar PDF completo/ }));
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1), { timeout: 9000 });
+    const report = container.querySelector(".print-report");
+    expect(report).toBeTruthy();
+    const txt = report!.textContent ?? "";
+    for (const sec of [
+      "Reporte de programación lineal",
+      "Modelo",
+      "Solución paso a paso",
+      "Método gráfico",
+      "Análisis de sensibilidad",
+      "Comparación de métodos",
+    ])
+      expect(txt).toContain(sec);
+    expect(txt).toContain("3380");
+    expect(txt.toLowerCase()).not.toContain("calculando");
+    expect(document.body.classList.contains("printing-report")).toBe(true);
+    window.dispatchEvent(new Event("afterprint"));
+    await waitFor(() => expect(container.querySelector(".print-report")).toBeNull());
+    expect(document.body.classList.contains("printing-report")).toBe(false);
+    printSpy.mockRestore();
+  });
 });

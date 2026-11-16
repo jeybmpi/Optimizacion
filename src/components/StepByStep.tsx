@@ -20,14 +20,6 @@ export default function StepByStep({ result, mode }: { result: SolveResult; mode
             <span className="lab mute">Paso 01 · Normalización</span>
             <h3>1. Forma estándar aumentada</h3>
           </div>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => window.print()}
-            title="Imprimir o guardar como PDF"
-          >
-            🖨 Exportar PDF
-          </button>
         </div>
         <p className="hint" style={{ marginTop: 4 }}>
           Método: {result.method === "revised" ? "simplex revisado (con B⁻¹)" : "Gran M (tablero simplex)"}.

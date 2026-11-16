@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ProblemForm, { FileTools } from "./components/ProblemForm";
 import Solution, { StatusBanner } from "./components/Solution";
 import StepByStep from "./components/StepByStep";
 import GraphicalMethod from "./components/GraphicalMethod";
 import Sensitivity from "./components/Sensitivity";
+import MethodComparison from "./components/MethodComparison";
+import PrintReport from "./components/PrintReport";
 import CloudPanel from "./components/CloudPanel";
 import { solve } from "./lib/api";
 import { cloudEnabled } from "./lib/cloud";
@@ -11,7 +13,7 @@ import { EMPTY_PROBLEM } from "./lib/examples";
 import { validateProblem } from "./lib/validate";
 import type { Method, NumMode, ProblemIn, SolveResult, ViewMode } from "./types";
 
-type Tab = "solution" | "steps" | "graph" | "sens";
+type Tab = "solution" | "steps" | "graph" | "sens" | "compare";
 
 function FlowerIcon({ className = "flower" }: { className?: string }) {
   return (
@@ -82,6 +84,36 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("steps");
   const [fileError, setFileError] = useState<string | null>(null);
 
+  const [printing, setPrinting] = useState(false);
+
+  // Exportar PDF = imprimir un reporte completo (modelo, solución, paso a paso, gráfico, sensibilidad, comparación).
+  useEffect(() => {
+    const prevTitle = document.title;
+    const done = () => {
+      setPrinting(false);
+      document.body.classList.remove("printing-report");
+      document.title = prevTitle;
+    };
+    window.addEventListener("afterprint", done);
+    return () => window.removeEventListener("afterprint", done);
+  }, []);
+
+  const exportPdf = async () => {
+    if (!result || !solvedProblem) return;
+    setPrinting(true);
+    document.body.classList.add("printing-report");
+    document.title = `Reporte LP - ${result.sense === "min" ? "Min" : "Max"} (${result.n} variables, ${result.m} restricciones)`;
+    // esperar a que el reporte se monte y termine sus cálculos asíncronos (comparación, pendientes laterales)
+    const t0 = Date.now();
+    await new Promise((r) => setTimeout(r, 150));
+    while (Date.now() - t0 < 8000) {
+      const txt = document.querySelector(".print-report")?.textContent?.toLowerCase() ?? "";
+      if (txt && !txt.includes("calculando")) break;
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    window.print();
+  };
+
   const validation = useMemo(() => validateProblem(problem), [problem]);
   const invalid = validation.messages.length > 0;
 
@@ -126,9 +158,11 @@ export default function App() {
     ...(view === "steps" ? [{ id: "steps" as Tab, text: "Paso a paso" }] : []),
     { id: "graph", text: "Método gráfico" },
     { id: "sens", text: "Sensibilidad" },
+    { id: "compare", text: "Comparar métodos" },
   ];
 
   return (
+    <>
     <div className="page-shell">
       <header className="topbar">
         <a className="brand" href="#top">
@@ -261,6 +295,11 @@ export default function App() {
                     </p>
                   </div>
                 )}
+                <div className="export-row">
+                  <button type="button" className="ghost" onClick={exportPdf} disabled={printing} title="Guarda un reporte completo como PDF">
+                    {printing ? "Preparando PDF…" : "🖨 Exportar PDF completo"}
+                  </button>
+                </div>
                 <div className="tabs" role="tablist">
                   {tabs.map((t) => (
                     <button
@@ -280,6 +319,7 @@ export default function App() {
                 {tab === "steps" && showSteps && <StepByStep result={result} mode={numMode} />}
                 {tab === "graph" && solvedProblem && <GraphicalMethod problem={solvedProblem} result={result} mode={numMode} />}
                 {tab === "sens" && solvedProblem && <Sensitivity problem={solvedProblem} result={result} mode={numMode} />}
+                {tab === "compare" && solvedProblem && <MethodComparison problem={solvedProblem} mode={numMode} />}
               </>
             )}
           </div>
@@ -313,5 +353,9 @@ export default function App() {
         </section>
       </div>
     </div>
+      {printing && result && solvedProblem && (
+        <PrintReport result={result} problem={solvedProblem} view={view} mode={numMode} />
+      )}
+    </>
   );
 }

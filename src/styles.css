@@ -1099,3 +1099,72 @@ table.tableau th.vb.col-in {
   stroke-width: 3px;
   stroke-linejoin: round;
 }
+
+/* Exportar PDF completo + comparación de métodos */
+.export-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.print-report {
+  display: none;
+}
+@page {
+  size: A4 landscape;
+  margin: 12mm;
+}
+@media print {
+  body.printing-report .page-shell {
+    display: none !important;
+  }
+  body.printing-report .print-report {
+    display: block !important;
+    color: #111;
+  }
+  .print-report .pr-head h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+  }
+  .print-report .pr-section {
+    margin-top: 18px;
+  }
+  .print-report .pr-section.pr-break {
+    break-before: page;
+  }
+  .print-report h2 {
+    font-size: 16px;
+    border-bottom: 2px solid #111;
+    padding-bottom: 4px;
+    margin: 0 0 10px;
+  }
+  .print-report .tab-scroll {
+    overflow: visible !important;
+  }
+  .print-report table,
+  .print-report .banner,
+  .print-report svg {
+    break-inside: avoid;
+  }
+  .print-report .block {
+    break-inside: avoid; /* si un bloque es más alto que una página, el navegador lo parte igualmente */
+  }
+  .print-report .tabs,
+  .print-report .iter-pills,
+  .print-report button {
+    display: none !important;
+  }
+}
+
+/* el gráfico debe caber en una sola página del PDF junto a su título */
+@media print {
+  .print-report .graph-wrap {
+    break-inside: avoid;
+    text-align: center;
+  }
+  .print-report .lp-graph {
+    max-height: 120mm;
+    width: auto;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+}
