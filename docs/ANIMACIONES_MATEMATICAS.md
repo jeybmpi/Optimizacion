@@ -1,3 +1,8 @@
+> ⚠️ **PROPUESTA NO IMPLEMENTADA.** Este documento describe animaciones para una futura iteración.
+> Ninguno de los componentes que menciona (`RayBarrierDiagram`, `SimplexTrajectory2D`, `ArithmeticLab`)
+> existe en el código actual y la carpeta `src/components/animations/` no existe.
+> El estado real del proyecto está en [`SPRINTS.md`](SPRINTS.md).
+
 # Guía de Diseño e Integración: Animaciones Gráficas y Contrapartida Geométrica
 
 Este documento especifica la arquitectura técnica, el mapeo matemático-geométrico y el diseño visual (siguiendo el sistema de diseño **FlowerPoint**) para integrar animaciones gráficas interactivas en una futura iteración del proyecto.
